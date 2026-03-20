@@ -1,5 +1,5 @@
 import { config } from 'dotenv'
-import { resolve, dirname, join } from 'path'
+import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
 // Get the directory of this script
@@ -9,16 +9,19 @@ const __dirname = dirname(__filename)
 // Load .env from project root (parent of prisma folder)
 const envPath = resolve(__dirname, '../.env')
 console.log('Loading .env from:', envPath)
-const result = config({ path: envPath })
-console.log('dotenv result:', result.parsed ? 'loaded ' + Object.keys(result.parsed).length + ' vars' : 'failed', result.error || '')
 
+// Load .env BEFORE importing Prisma
+const result = config({ path: envPath, override: true })
+console.log('dotenv result:', result.parsed ? 'loaded ' + Object.keys(result.parsed).length + ' vars' : 'failed', result.error || '')
+console.log('DATABASE_URL loaded:', process.env.DATABASE_URL?.substring(0, 60) + '...')
+
+// Import Prisma AFTER loading env
 import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
 async function main() {
   console.log('🌱 Seeding database...')
-  console.log('DATABASE_URL:', process.env.DATABASE_URL?.substring(0, 50) + '...')
 
   // Clean existing data
   await prisma.satisfactionRating.deleteMany()

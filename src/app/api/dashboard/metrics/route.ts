@@ -17,7 +17,9 @@ export async function GET() {
 
     // Get sentiment distribution
     const tickets = await db.ticket.findMany({
-      where: { sentiment: { not: null } },
+      where: { 
+        sentiment: { not: null } 
+      },
       select: { sentiment: true, sentimentScore: true },
     })
 
@@ -45,11 +47,10 @@ export async function GET() {
     )
 
     // Calculate average resolution time (simplified)
+    // Use raw query or simple approach to avoid DateTime null issues
     const resolvedTicketsWithTimes = await db.ticket.findMany({
       where: {
         status: 'resolved',
-        resolvedAt: { not: null },
-        createdAt: { not: null },
       },
       select: {
         createdAt: true,
@@ -58,13 +59,14 @@ export async function GET() {
     })
 
     let avgResolutionTime = 0
-    if (resolvedTicketsWithTimes.length > 0) {
-      const totalHours = resolvedTicketsWithTimes.reduce((acc, ticket) => {
+    const validTickets = resolvedTicketsWithTimes.filter(t => t.resolvedAt)
+    if (validTickets.length > 0) {
+      const totalHours = validTickets.reduce((acc, ticket) => {
         const created = new Date(ticket.createdAt).getTime()
         const resolved = new Date(ticket.resolvedAt!).getTime()
         return acc + (resolved - created) / (1000 * 60 * 60)
       }, 0)
-      avgResolutionTime = totalHours / resolvedTicketsWithTimes.length
+      avgResolutionTime = totalHours / validTickets.length
     }
 
     // Get CSAT score
@@ -79,10 +81,6 @@ export async function GET() {
     }
 
     // Get AI suggestion usage
-    const messagesWithAI = await db.message.count({
-      where: { aiGenerated: true },
-    })
-
     const messagesAccepted = await db.message.count({
       where: { aiSuggestionAccepted: true },
     })
