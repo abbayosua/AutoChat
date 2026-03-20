@@ -54,3 +54,7 @@ server.log
 SUPABASECREDS.md
 .zscripts/
 worklog.md
+
+# Playwright test results
+test-results/
+playwright-report/
