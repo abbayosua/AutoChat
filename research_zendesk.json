@@ -1,0 +1,74 @@
+[
+  {
+    "url": "https://www.zendesk.com/service/ai",
+    "name": "AI for customer service",
+    "snippet": "Revolutionize support with Zendesk AI. Use intelligent bots, advanced self-service, and agent tools to boost productivity and cut costs.",
+    "host_name": "www.zendesk.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://support.zendesk.com/hc/en-us/articles/7155968191258-What-s-new-in-Zendesk-May-2024",
+    "name": "What's new in Zendesk: May 2024",
+    "snippet": "AI agents are the next generation of Zendesk bots that automate and resolve your customers' issues across service channels. Read more",
+    "host_name": "support.zendesk.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://support.zendesk.com/hc/en-us/articles/7698503636250-What-s-new-in-Zendesk-August-2024",
+    "name": "What's new in Zendesk: August 2024",
+    "snippet": "We've added support for new languages to Zendesk Bots ... Read more",
+    "host_name": "support.zendesk.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.kundelab.no/en/articles/zendesk-2024-whats-new",
+    "name": "Zendesk 2024: What's new",
+    "snippet": "The new dashboards now include scheduling functionality , allowing them to be sent at specific times to designated recipients in the chosen format. The bookmark ... Read more",
+    "host_name": "www.kundelab.no",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.zendesk.com",
+    "name": "Zendesk: Transform Customer & Employee Service with AI",
+    "snippet": "Transform customer and employee service with Zendesk AI Agents —trusted by 200000+ companies. Deliver fast, personalized support across chat, email, voice, ...",
+    "host_name": "www.zendesk.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.nextmatter.com/blog/zendesk-ai",
+    "name": "Zendesk AI: What It Can Do (and Why You Still Need CS",
+    "snippet": "Apr 18, 2024 — When customers send a message or fill in a form, the AI can automatically scan the contents and identify what existing articles might already ... Read more",
+    "host_name": "www.nextmatter.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://support.zendesk.com/hc/en-us/articles/4408838386842-Overview-of-the-Zendesk-AI-agents-dashboard",
+    "name": "Overview of the Zendesk AI agents dashboard",
+    "snippet": "Analytics features a prebuilt dashboard displaying reports about AI agents, flow builder (legacy), and article recommendations (legacy). Read more",
+    "host_name": "support.zendesk.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://futurumgroup.com/insights/will-zendesks-new-ai-tools-deliver-better-service-to-customers-and-workers",
+    "name": "Will Zendesk's New AI Tools Deliver Better Service to",
+    "snippet": "Oct 15, 2024 — Zendesk announces new product features , focusing on AI used for self-service and agent-assisted interactions to benefit its customers.",
+    "host_name": "futurumgroup.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  }
+]
