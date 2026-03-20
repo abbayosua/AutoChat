@@ -1,32 +1,296 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider  = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
+// ============================================
+// USER & AUTHENTICATION
+// ============================================
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
-  name      String?
+  name      String
+  role      String   @default("agent") // admin, agent, customer
+  avatar    String?
+  status    String   @default("offline") // online, offline, away, busy
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Relations
+  ticketsAsCustomer   Ticket[]         @relation("CustomerTickets")
+  ticketsAsAgent      Ticket[]         @relation("AgentTickets")
+  messages            Message[]
+  internalNotes       InternalNote[]
+  activities          Activity[]
+  cannedResponses     CannedResponse[]
+  satisfactionRatings SatisfactionRating[]
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
 }
 
-model Post {
-  id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
+// ============================================
+// TICKETS
+// ============================================
+model Ticket {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+
+  // Status & Priority
+  status   String @default("open") // open, in_progress, pending, waiting_customer, resolved, closed
+  priority String @default("medium") // low, medium, high, urgent
+  category String? // technical, billing, general, feature_request, bug
+
+  // AI Analysis
+  sentiment      String? // positive, neutral, negative
+  sentimentScore Float? // -1.0 to 1.0
+  aiConfidence   Float? // Classification confidence
+
+  // Assignment
+  customerId String
+  agentId    String?
+
+  // SLA Tracking
+  slaDueAt        DateTime?
+  slaBreached     Boolean   @default(false)
+  firstResponseAt DateTime?
+  resolvedAt      DateTime?
+
+  // Satisfaction
+  satisfactionRatingId String?
+
+  // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Relations
+  customer          User                @relation("CustomerTickets", fields: [customerId], references: [id])
+  agent             User?               @relation("AgentTickets", fields: [agentId], references: [id])
+  messages          Message[]
+  activities        Activity[]
+  internalNotes     InternalNote[]
+  tags              TicketTag[]
+  satisfactionRating SatisfactionRating?
+
+  @@index([status])
+  @@index([priority])
+  @@index([customerId])
+  @@index([agentId])
+  @@index([createdAt])
+}
+
+// ============================================
+// MESSAGES & COMMUNICATION
+// ============================================
+model Message {
+  id      String   @id @default(cuid())
+  content String
+  type    String   @default("user") // user, agent, ai_suggestion, system, internal
+
+  // AI Context
+  aiGenerated          Boolean @default(false)
+  aiSuggestionAccepted Boolean @default(false)
+
+  ticketId  String
+  senderId  String?
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender User?  @relation(fields: [senderId], references: [id])
+
+  @@index([ticketId])
+  @@index([createdAt])
+}
+
+model InternalNote {
+  id        String   @id @default(cuid())
+  content   String
+  ticketId  String
+  authorId  String
+  mentions  String? // JSON array of user IDs mentioned
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId])
+}
+
+// ============================================
+// ACTIVITIES & TIMELINE
+// ============================================
+model Activity {
+  id          String   @id @default(cuid())
+  type        String // created, assigned, status_changed, priority_changed, replied, note_added, resolved, reopened, closed
+  description String
+  ticketId    String
+  userId      String?
+  metadata    String? // JSON for additional context
+  createdAt   DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id])
+
+  @@index([ticketId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// ============================================
+// TAGS & CATEGORIZATION
+// ============================================
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String   @default("#6B7280")
+  createdAt DateTime @default(now())
+
+  tickets TicketTag[]
+
+  @@index([name])
+}
+
+model TicketTag {
+  ticketId String
+  tagId    String
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([ticketId, tagId])
+}
+
+// ============================================
+// KNOWLEDGE BASE
+// ============================================
+model KnowledgeArticle {
+  id        String   @id @default(cuid())
+  title     String
+  content   String // Markdown content
+  summary   String? // AI-generated summary
+  category  String
+  tags      String // Comma-separated
+
+  // Analytics
+  viewCount        Int @default(0)
+  helpfulCount     Int @default(0)
+  notHelpfulCount  Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([title])
+}
+
+// ============================================
+// CANNED RESPONSES / MACROS
+// ============================================
+model CannedResponse {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  category  String? // greeting, closing, escalation, etc.
+  shortcut  String? // e.g., "/hello" for quick insert
+
+  creatorId String
+  isShared  Boolean @default(true)
+
+  // Analytics
+  useCount Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  creator User @relation(fields: [creatorId], references: [id])
+
+  @@index([creatorId])
+  @@index([category])
+}
+
+// ============================================
+// SATISFACTION & FEEDBACK
+// ============================================
+model SatisfactionRating {
+  id        String   @id @default(cuid())
+  rating    Int // 1-5 stars
+  comment   String?
+  ticketId  String   @unique
+  customerId String
+
+  // Additional feedback
+  responseTimeRating Int? // 1-5
+  agentRating        Int? // 1-5
+
+  createdAt DateTime @default(now())
+
+  ticket   Ticket @relation(fields: [ticketId], references: [id])
+  customer User   @relation(fields: [customerId], references: [id])
+
+  @@index([ticketId])
+
+  @@index([rating])
+  @@index([customerId])
+}
+
+// ============================================
+// DASHBOARD METRICS (Aggregated)
+// ============================================
+model DashboardMetric {
+  id   String   @id @default(cuid())
+  date DateTime @unique
+
+  // Ticket Metrics
+  totalTickets    Int @default(0)
+  newTickets      Int @default(0)
+  resolvedTickets Int @default(0)
+  reopenedTickets Int @default(0)
+
+  // Time Metrics (in minutes)
+  avgFirstResponseTime Float?
+  avgResolutionTime    Float?
+
+  // Satisfaction
+  avgCSAT      Float? // 1-5 scale
+  totalRatings Int     @default(0)
+
+  // AI Metrics
+  aiSuggestionsGenerated Int @default(0)
+  aiSuggestionsAccepted  Int @default(0)
+
+  // Agent Metrics
+  activeAgents     Int    @default(0)
+  avgAgentWorkload Float?
+
+  createdAt DateTime @default(now())
+
+  @@index([date])
+}
+
+// ============================================
+// AGENT WORKLOAD TRACKING
+// ============================================
+model AgentWorkload {
+  id        String   @id @default(cuid())
+  agentId   String
+  date      DateTime
+
+  ticketsAssigned       Int  @default(0)
+  ticketsResolved       Int  @default(0)
+  avgResponseTime       Float? // minutes
+  customerSatisfaction  Float?
+
+  createdAt DateTime @default(now())
+
+  @@unique([agentId, date])
+  @@index([agentId])
+  @@index([date])
 }
