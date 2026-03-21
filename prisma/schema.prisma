@@ -31,6 +31,9 @@ model User {
   satisfactionRatings SatisfactionRating[]
   notifications        Notification[]
   knowledgeArticles    KnowledgeArticle[]
+  chatRooms            ChatRoom[]       @relation("ChatRoomCreator")
+  chatMessages         ChatMessage[]
+  chatParticipants     ChatRoomParticipant[]
 
   @@index([email])
   @@index([role])
@@ -330,4 +333,55 @@ model Settings {
   updatedAt DateTime @updatedAt
 
   @@index([key])
+}
+
+// ============================================
+// LIVE CHAT (Supabase Realtime)
+// ============================================
+model ChatRoom {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  type        String   @default("public") // public, private, direct
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy   User?          @relation("ChatRoomCreator", fields: [createdById], references: [id])
+  messages    ChatMessage[]
+  participants ChatRoomParticipant[]
+
+  @@index([type])
+  @@index([createdAt])
+}
+
+model ChatRoomParticipant {
+  id       String   @id @default(cuid())
+  roomId   String
+  userId   String
+  joinedAt DateTime @default(now())
+  lastSeen DateTime @default(now())
+
+  room ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id])
+
+  @@unique([roomId, userId])
+  @@index([roomId])
+  @@index([userId])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  content   String
+  roomId    String
+  senderId  String
+  type      String   @default("message") // message, system, typing
+  createdAt DateTime @default(now())
+
+  room   ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender User     @relation(fields: [senderId], references: [id])
+
+  @@index([roomId])
+  @@index([senderId])
+  @@index([createdAt])
 }

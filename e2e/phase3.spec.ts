@@ -83,19 +83,60 @@ test.describe('Phase 3 - Reports API', () => {
   })
 })
 
-test.describe('Phase 3 - WebSocket Chat Service', () => {
-  test('Chat WebSocket service is running on port 3003', async ({ page }) => {
-    // Check if the chat service is accessible
-    try {
-      const response = await page.request.get(`${BASE_URL}/?XTransformPort=3003`, {
-        timeout: 5000
-      })
-      // The WebSocket service may return various status codes
-      // We're just checking if it's reachable
-      expect([200, 400, 404, 503]).toContain(response.status())
-    } catch {
-      // Service might not be responding to HTTP, which is fine for WebSocket
-      expect(true).toBe(true)
-    }
+test.describe('Phase 3 - Chat API (Supabase Realtime)', () => {
+  test('Chat rooms API returns rooms', async ({ page }) => {
+    const response = await page.request.get(`${BASE_URL}/api/chat/rooms`)
+    expect(response.status()).toBe(200)
+
+    const data = await response.json()
+    expect(data.success).toBe(true)
+    expect(Array.isArray(data.data)).toBe(true)
+    expect(data.data.length).toBeGreaterThan(0)
+
+    // Check room structure
+    const room = data.data[0]
+    expect(room.id).toBeDefined()
+    expect(room.name).toBeDefined()
+    expect(typeof room.participantCount).toBe('number')
+  })
+
+  test('Chat messages API returns messages for a room', async ({ page }) => {
+    const response = await page.request.get(`${BASE_URL}/api/chat/rooms/general/messages`)
+    expect(response.status()).toBe(200)
+
+    const data = await response.json()
+    expect(data.success).toBe(true)
+    expect(Array.isArray(data.data)).toBe(true)
+  })
+
+  test('Chat messages API can send a message', async ({ page }) => {
+    const response = await page.request.post(`${BASE_URL}/api/chat/rooms/general/messages`, {
+      headers: { 'Content-Type': 'application/json' },
+      data: JSON.stringify({
+        content: 'Test message from Playwright',
+        senderName: 'Playwright Test',
+      }),
+    })
+    expect(response.status()).toBe(200)
+
+    const data = await response.json()
+    expect(data.success).toBe(true)
+    expect(data.data.content).toBe('Test message from Playwright')
+    expect(data.data.sender.name).toBe('Playwright Test')
+  })
+
+  test('Chat messages API rejects empty content', async ({ page }) => {
+    const response = await page.request.post(`${BASE_URL}/api/chat/rooms/general/messages`, {
+      headers: { 'Content-Type': 'application/json' },
+      data: JSON.stringify({
+        content: '',
+        senderName: 'Playwright Test',
+      }),
+    })
+    expect(response.status()).toBe(400)
+
+    const data = await response.json()
+    expect(data.success).toBe(false)
+    expect(data.error).toContain('required')
   })
 })
