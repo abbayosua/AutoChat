@@ -4,7 +4,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { StatusBadge, PriorityBadge, SentimentBadge } from '@/components/atoms';
 import { AvatarWithStatus } from '@/components/atoms/AvatarWithStatus';
 import { MessageBubble, TagList, ActivityItem } from '@/components/molecules';
@@ -38,9 +39,22 @@ import {
   MessageSquare,
   Activity,
   FileText,
+  Lock,
+  Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Ticket, User as UserType, Message, Activity as ActivityType, Tag } from '@/types';
+
+interface InternalNote {
+  id: string;
+  content: string;
+  author: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
+  createdAt: string;
+}
 
 interface TicketDetailModalProps {
   ticket: (Ticket & {
@@ -69,6 +83,52 @@ export function TicketDetailModal({
 }: TicketDetailModalProps) {
   const [replyText, setReplyText] = useState('');
   const [activeTab, setActiveTab] = useState('conversation');
+  const [notes, setNotes] = useState<InternalNote[]>([]);
+  const [newNote, setNewNote] = useState('');
+  const [isLoadingNotes, setIsLoadingNotes] = useState(false);
+
+  // Fetch notes when ticket changes
+  useEffect(() => {
+    if (ticket && open) {
+      fetchNotes();
+    }
+  }, [ticket?.id, open]);
+
+  const fetchNotes = async () => {
+    if (!ticket) return;
+    setIsLoadingNotes(true);
+    try {
+      const response = await fetch(`/api/tickets/${ticket.id}/notes`);
+      const result = await response.json();
+      if (result.success) {
+        setNotes(result.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch notes:', error);
+      setNotes([]);
+    } finally {
+      setIsLoadingNotes(false);
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!ticket || !newNote.trim()) return;
+    
+    try {
+      const response = await fetch(`/api/tickets/${ticket.id}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newNote }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setNotes(prev => [result.data, ...prev]);
+        setNewNote('');
+      }
+    } catch (error) {
+      console.error('Failed to add note:', error);
+    }
+  };
 
   if (!ticket) return null;
 
@@ -173,10 +233,64 @@ export function TicketDetailModal({
                 </ScrollArea>
               </TabsContent>
 
-              <TabsContent value="notes" className="flex-1 m-0">
-                <div className="p-4 text-center text-slate-500">
-                  Internal notes coming soon...
+              <TabsContent value="notes" className="flex-1 flex flex-col m-0">
+                <div className="p-4 border-b bg-amber-50/50 dark:bg-amber-950/20">
+                  <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                    <Lock className="h-4 w-4" />
+                    <span className="text-sm font-medium">Internal Notes</span>
+                    <span className="text-xs text-amber-600 dark:text-amber-500">Only visible to agents</span>
+                  </div>
                 </div>
+                
+                {/* Add Note Input */}
+                <div className="p-4 border-b">
+                  <Textarea
+                    placeholder="Add an internal note..."
+                    value={newNote}
+                    onChange={(e) => setNewNote(e.target.value)}
+                    className="min-h-[80px] mb-2"
+                  />
+                  <Button 
+                    onClick={handleAddNote} 
+                    disabled={!newNote.trim()}
+                    size="sm"
+                    className="gap-1"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Note
+                  </Button>
+                </div>
+                
+                {/* Notes List */}
+                <ScrollArea className="flex-1">
+                  <div className="p-4 space-y-4">
+                    {isLoadingNotes ? (
+                      <p className="text-center text-slate-500 py-4">Loading notes...</p>
+                    ) : notes.length === 0 ? (
+                      <p className="text-center text-slate-500 py-8">No internal notes yet</p>
+                    ) : (
+                      notes.map((note) => (
+                        <div 
+                          key={note.id} 
+                          className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-900"
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-6 h-6 rounded-full bg-teal-500 flex items-center justify-center text-white text-xs">
+                              {note.author.name.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="text-sm font-medium">{note.author.name}</span>
+                            <span className="text-xs text-slate-500">
+                              {new Date(note.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+                          <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
+                            {note.content}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
               </TabsContent>
             </Tabs>
           </div>

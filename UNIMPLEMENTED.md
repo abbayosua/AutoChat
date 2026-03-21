@@ -156,9 +156,9 @@ Currently implemented:
 - [ ] Implement notification API and connect to header
 
 ### Phase 2: Essential Pages
-- [ ] Create `/customers` page
-- [ ] Create `/settings` page
-- [ ] Implement Internal Notes in Ticket Detail
+- [x] Create `/customers` page
+- [x] Create `/settings` page
+- [x] Implement Internal Notes in Ticket Detail
 
 ### Phase 3: Advanced Features
 - [ ] Create `/chat` page with WebSocket
