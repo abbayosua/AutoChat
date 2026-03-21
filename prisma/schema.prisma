@@ -30,6 +30,7 @@ model User {
   cannedResponses     CannedResponse[]
   satisfactionRatings SatisfactionRating[]
   notifications        Notification[]
+  knowledgeArticles    KnowledgeArticle[]
 
   @@index([email])
   @@index([role])
@@ -175,23 +176,23 @@ model TicketTag {
 // KNOWLEDGE BASE
 // ============================================
 model KnowledgeArticle {
-  id        String   @id @default(cuid())
-  title     String
-  content   String // Markdown content
-  summary   String? // AI-generated summary
-  category  String
-  tags      String // Comma-separated
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  content     String
+  excerpt     String?
+  category    String
+  tags        String?
+  authorId    String?
+  published   Boolean  @default(false)
+  viewCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  // Analytics
-  viewCount        Int @default(0)
-  helpfulCount     Int @default(0)
-  notHelpfulCount  Int @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  author      User?    @relation(fields: [authorId], references: [id])
 
   @@index([category])
-  @@index([title])
+  @@index([published])
 }
 
 // ============================================

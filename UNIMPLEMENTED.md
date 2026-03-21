@@ -161,9 +161,9 @@ Currently implemented:
 - [x] Implement Internal Notes in Ticket Detail
 
 ### Phase 3: Advanced Features
-- [ ] Create `/chat` page with WebSocket
-- [ ] Create `/knowledge` page
-- [ ] Create `/reports` page
+- [x] Create `/chat` page with WebSocket
+- [x] Create `/knowledge` page
+- [x] Create `/reports` page
 
 ### Phase 4: Landing Page Links
 - [ ] Create About, Blog, Careers, Contact pages
