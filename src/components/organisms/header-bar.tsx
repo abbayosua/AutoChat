@@ -19,9 +19,13 @@ import {
   Sun,
   HelpCircle,
   LogOut,
+  User,
+  Loader2,
 } from 'lucide-react'
 import { AvatarWithStatus } from '@/components/atoms/avatar-with-status'
 import { useTheme } from 'next-themes'
+import { useAuth } from '@/hooks/auth/use-auth'
+import { useRouter } from 'next/navigation'
 
 interface HeaderBarProps {
   notificationCount?: number
@@ -30,6 +34,18 @@ interface HeaderBarProps {
 
 export function HeaderBar({ notificationCount = 0, className }: HeaderBarProps) {
   const { theme, setTheme } = useTheme()
+  const { user, signOut, isLoading } = useAuth()
+  const router = useRouter()
+
+  // Get user display info
+  const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'User'
+  const userEmail = user?.email || 'user@autochat.com'
+  const userAvatar = user?.user_metadata?.avatar_url || user?.user_metadata?.picture
+
+  const handleSignOut = async () => {
+    await signOut()
+    router.push('/login')
+  }
 
   return (
     <header
@@ -104,7 +120,7 @@ export function HeaderBar({ notificationCount = 0, className }: HeaderBarProps) 
         </Button>
 
         {/* Settings */}
-        <Button variant="ghost" size="icon">
+        <Button variant="ghost" size="icon" onClick={() => router.push('/settings')}>
           <Settings className="h-5 w-5" />
         </Button>
 
@@ -112,31 +128,46 @@ export function HeaderBar({ notificationCount = 0, className }: HeaderBarProps) 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="gap-2 px-2">
-              <AvatarWithStatus
-                name="Agent Smith"
-                status="online"
-                size="sm"
-              />
-              <span className="hidden md:inline text-sm font-medium">
-                Agent Smith
-              </span>
+              {isLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <>
+                  <AvatarWithStatus
+                    name={userName}
+                    src={userAvatar}
+                    status="online"
+                    size="sm"
+                  />
+                  <span className="hidden md:inline text-sm font-medium">
+                    {userName}
+                  </span>
+                </>
+              )}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
               <div className="flex flex-col">
-                <span>Agent Smith</span>
+                <span>{userName}</span>
                 <span className="text-xs text-gray-500 font-normal">
-                  agent@autochat.com
+                  {userEmail}
                 </span>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuItem>Keyboard shortcuts</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push('/settings')}>
+              <User className="h-4 w-4 mr-2" />
+              Profile
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push('/settings')}>
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-rose-600 dark:text-rose-400">
+            <DropdownMenuItem 
+              className="text-rose-600 dark:text-rose-400"
+              onClick={handleSignOut}
+            >
               <LogOut className="h-4 w-4 mr-2" />
               Log out
             </DropdownMenuItem>
