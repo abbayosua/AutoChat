@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 
@@ -30,6 +29,7 @@ model User {
   activities          Activity[]
   cannedResponses     CannedResponse[]
   satisfactionRatings SatisfactionRating[]
+  notifications        Notification[]
 
   @@index([email])
   @@index([role])
@@ -79,6 +79,7 @@ model Ticket {
   internalNotes     InternalNote[]
   tags              TicketTag[]
   satisfactionRating SatisfactionRating?
+  notifications      Notification[]
 
   @@index([status])
   @@index([priority])
@@ -294,4 +295,23 @@ model AgentWorkload {
   @@unique([agentId, date])
   @@index([agentId])
   @@index([date])
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+model Notification {
+  id          String   @id @default(cuid())
+  type        String   // 'ticket_assigned', 'new_message', 'mention', etc.
+  title       String
+  message     String
+  read        Boolean  @default(false)
+  userId      String
+  ticketId    String?
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+  ticket      Ticket?  @relation(fields: [ticketId], references: [id])
+
+  @@index([userId, read])
 }

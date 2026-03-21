@@ -23,7 +23,7 @@ interface SidebarNavProps {
 }
 
 const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
+  { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
   { icon: Inbox, label: 'Tickets', href: '/tickets' },
   { icon: Users, label: 'Customers', href: '/customers' },
   { icon: MessageSquare, label: 'Live Chat', href: '/chat' },

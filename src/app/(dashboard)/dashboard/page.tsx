@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { SidebarNav } from '@/components/organisms/sidebar-nav'
 import { HeaderBar } from '@/components/organisms/header-bar'
 import { MetricsGrid } from '@/components/organisms/metrics-grid'
@@ -20,284 +20,168 @@ import { PriorityBadge } from '@/components/atoms/priority-badge'
 import { SentimentBadge } from '@/components/atoms/sentiment-badge'
 import { AIIndicator } from '@/components/atoms/ai-indicator'
 import { MessageBubble } from '@/components/molecules/message-bubble'
-import { Sparkles, Send, Paperclip, MoreHorizontal, Clock, User } from 'lucide-react'
+import { Sparkles, Send, Paperclip, MoreHorizontal, Loader2 } from 'lucide-react'
 import type { Ticket, Message, Activity, DashboardMetrics, User as UserType } from '@/types'
 
-// Mock data for demonstration
-const mockMetrics: DashboardMetrics = {
-  totalTickets: 248,
-  openTickets: 42,
-  resolvedTickets: 156,
-  avgResponseTime: 18,
-  avgResolutionTime: 4.2,
-  csatScore: 4.6,
-  aiSuggestionsUsed: 89,
-  sentimentPositive: 65,
-  sentimentNeutral: 25,
-  sentimentNegative: 10,
+// Default metrics for initial state
+const defaultMetrics: DashboardMetrics = {
+  totalTickets: 0,
+  openTickets: 0,
+  resolvedTickets: 0,
+  avgResponseTime: 0,
+  avgResolutionTime: 0,
+  csatScore: 0,
+  aiSuggestionsUsed: 0,
+  sentimentPositive: 0,
+  sentimentNeutral: 0,
+  sentimentNegative: 0,
 }
-
-const mockCustomers: Record<string, UserType> = {
-  '1': {
-    id: '1',
-    email: 'john.doe@example.com',
-    name: 'John Doe',
-    role: 'customer',
-    status: 'online',
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date(),
-  },
-  '2': {
-    id: '2',
-    email: 'jane.smith@example.com',
-    name: 'Jane Smith',
-    role: 'customer',
-    status: 'offline',
-    createdAt: new Date('2024-02-20'),
-    updatedAt: new Date(),
-  },
-  '3': {
-    id: '3',
-    email: 'bob.wilson@example.com',
-    name: 'Bob Wilson',
-    role: 'customer',
-    status: 'online',
-    createdAt: new Date('2024-03-10'),
-    updatedAt: new Date(),
-  },
-}
-
-const mockTickets: Ticket[] = [
-  {
-    id: '1',
-    title: 'Unable to login to my account',
-    description: 'I have been trying to login but keep getting an error saying invalid credentials. I am sure my password is correct.',
-    status: 'open',
-    priority: 'high',
-    category: 'technical',
-    sentiment: 'negative',
-    sentimentScore: -0.6,
-    customerId: '1',
-    slaBreached: false,
-    createdAt: new Date(Date.now() - 30 * 60000),
-    updatedAt: new Date(),
-    customer: mockCustomers['1'],
-    messages: [
-      {
-        id: '1',
-        content: 'I have been trying to login but keep getting an error saying invalid credentials. I am sure my password is correct.',
-        type: 'user',
-        aiGenerated: false,
-        aiSuggestionAccepted: false,
-        ticketId: '1',
-        senderId: '1',
-        createdAt: new Date(Date.now() - 30 * 60000),
-        sender: mockCustomers['1'],
-      },
-    ],
-    tags: [
-      { ticketId: '1', tagId: '1', tag: { id: '1', name: 'Login Issue', color: '#F59E0B' } },
-      { ticketId: '1', tagId: '2', tag: { id: '2', name: 'Urgent', color: '#EF4444' } },
-    ],
-  },
-  {
-    id: '2',
-    title: 'Billing question about subscription',
-    description: 'I was charged twice for my monthly subscription. Can you please help me get a refund for the duplicate charge?',
-    status: 'in_progress',
-    priority: 'medium',
-    category: 'billing',
-    sentiment: 'neutral',
-    sentimentScore: 0.1,
-    customerId: '2',
-    slaBreached: false,
-    createdAt: new Date(Date.now() - 2 * 3600000),
-    updatedAt: new Date(),
-    customer: mockCustomers['2'],
-    messages: [
-      {
-        id: '2',
-        content: 'I was charged twice for my monthly subscription. Can you please help me get a refund for the duplicate charge?',
-        type: 'user',
-        aiGenerated: false,
-        aiSuggestionAccepted: false,
-        ticketId: '2',
-        senderId: '2',
-        createdAt: new Date(Date.now() - 2 * 3600000),
-        sender: mockCustomers['2'],
-      },
-    ],
-    tags: [
-      { ticketId: '2', tagId: '3', tag: { id: '3', name: 'Billing', color: '#10B981' } },
-    ],
-  },
-  {
-    id: '3',
-    title: 'Feature request: Dark mode',
-    description: 'It would be great if you could add a dark mode option to the dashboard. My eyes get tired looking at bright screens all day.',
-    status: 'pending',
-    priority: 'low',
-    category: 'feature_request',
-    sentiment: 'positive',
-    sentimentScore: 0.4,
-    customerId: '3',
-    slaBreached: false,
-    createdAt: new Date(Date.now() - 24 * 3600000),
-    updatedAt: new Date(),
-    customer: mockCustomers['3'],
-    messages: [
-      {
-        id: '3',
-        content: 'It would be great if you could add a dark mode option to the dashboard. My eyes get tired looking at bright screens all day.',
-        type: 'user',
-        aiGenerated: false,
-        aiSuggestionAccepted: false,
-        ticketId: '3',
-        senderId: '3',
-        createdAt: new Date(Date.now() - 24 * 3600000),
-        sender: mockCustomers['3'],
-      },
-    ],
-    tags: [
-      { ticketId: '3', tagId: '4', tag: { id: '4', name: 'Feature', color: '#8B5CF6' } },
-    ],
-  },
-  {
-    id: '4',
-    title: 'API integration not working',
-    description: 'We are trying to integrate with your API but getting 500 errors on the /webhooks endpoint. This is blocking our production deployment.',
-    status: 'open',
-    priority: 'urgent',
-    category: 'technical',
-    sentiment: 'negative',
-    sentimentScore: -0.8,
-    customerId: '1',
-    slaBreached: true,
-    createdAt: new Date(Date.now() - 1 * 3600000),
-    updatedAt: new Date(),
-    customer: mockCustomers['1'],
-    messages: [
-      {
-        id: '4',
-        content: 'We are trying to integrate with your API but getting 500 errors on the /webhooks endpoint. This is blocking our production deployment.',
-        type: 'user',
-        aiGenerated: false,
-        aiSuggestionAccepted: false,
-        ticketId: '4',
-        senderId: '1',
-        createdAt: new Date(Date.now() - 1 * 3600000),
-        sender: mockCustomers['1'],
-      },
-    ],
-    tags: [
-      { ticketId: '4', tagId: '5', tag: { id: '5', name: 'API', color: '#3B82F6' } },
-      { ticketId: '4', tagId: '2', tag: { id: '2', name: 'Urgent', color: '#EF4444' } },
-    ],
-  },
-  {
-    id: '5',
-    title: 'Password reset not working',
-    description: 'I requested a password reset but never received the email. Checked spam folder too.',
-    status: 'resolved',
-    priority: 'medium',
-    category: 'technical',
-    sentiment: 'neutral',
-    sentimentScore: -0.2,
-    customerId: '2',
-    slaBreached: false,
-    createdAt: new Date(Date.now() - 48 * 3600000),
-    updatedAt: new Date(),
-    customer: mockCustomers['2'],
-    messages: [
-      {
-        id: '5',
-        content: 'I requested a password reset but never received the email. Checked spam folder too.',
-        type: 'user',
-        aiGenerated: false,
-        aiSuggestionAccepted: false,
-        ticketId: '5',
-        senderId: '2',
-        createdAt: new Date(Date.now() - 48 * 3600000),
-        sender: mockCustomers['2'],
-      },
-      {
-        id: '6',
-        content: 'I have manually reset your password and sent a new temporary password to your email. Please check your inbox and let me know if you have any issues logging in.',
-        type: 'agent',
-        aiGenerated: false,
-        aiSuggestionAccepted: false,
-        ticketId: '5',
-        senderId: 'agent1',
-        createdAt: new Date(Date.now() - 47 * 3600000),
-      },
-      {
-        id: '7',
-        content: 'Thank you! I was able to login successfully.',
-        type: 'user',
-        aiGenerated: false,
-        aiSuggestionAccepted: false,
-        ticketId: '5',
-        senderId: '2',
-        createdAt: new Date(Date.now() - 46 * 3600000),
-        sender: mockCustomers['2'],
-      },
-    ],
-    tags: [
-      { ticketId: '5', tagId: '1', tag: { id: '1', name: 'Login Issue', color: '#F59E0B' } },
-    ],
-  },
-]
-
-const mockActivities: Activity[] = [
-  {
-    id: '1',
-    type: 'created',
-    description: 'Ticket created by John Doe',
-    ticketId: '1',
-    createdAt: new Date(Date.now() - 30 * 60000),
-    user: mockCustomers['1'],
-  },
-  {
-    id: '2',
-    type: 'assigned',
-    description: 'Ticket assigned to Agent Smith',
-    ticketId: '1',
-    createdAt: new Date(Date.now() - 25 * 60000),
-  },
-  {
-    id: '3',
-    type: 'replied',
-    description: 'Agent replied to the ticket',
-    ticketId: '1',
-    createdAt: new Date(Date.now() - 20 * 60000),
-  },
-  {
-    id: '4',
-    type: 'status_changed',
-    description: 'Status changed from Open to In Progress',
-    ticketId: '1',
-    createdAt: new Date(Date.now() - 15 * 60000),
-  },
-]
-
-const mockSuggestions = [
-  {
-    id: '1',
-    content: "I understand how frustrating it can be when you can't access your account. Let me help you resolve this right away. First, could you confirm if you've tried using the 'Forgot Password' feature? If that doesn't work, I can manually reset your password for you.",
-    type: 'solution' as const,
-  },
-  {
-    id: '2',
-    content: "I apologize for the inconvenience. Our system shows that your account was temporarily locked due to multiple failed login attempts. I've unlocked it now. Please try logging in again, and let me know if you face any issues.",
-    type: 'solution' as const,
-  },
-]
 
 export default function Dashboard() {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [replyText, setReplyText] = useState('')
   const [isAILoading, setIsAILoading] = useState(false)
+
+  // Real data states
+  const [metrics, setMetrics] = useState<DashboardMetrics>(defaultMetrics)
+  const [tickets, setTickets] = useState<Ticket[]>([])
+  const [activities, setActivities] = useState<Activity[]>([])
+  const [suggestions, setSuggestions] = useState<{ id: string; content: string; type: string }[]>([])
+  const [notificationCount, setNotificationCount] = useState(0)
+
+  // Loading states
+  const [isLoadingMetrics, setIsLoadingMetrics] = useState(true)
+  const [isLoadingTickets, setIsLoadingTickets] = useState(true)
+  const [isLoadingActivities, setIsLoadingActivities] = useState(true)
+
+  // Fetch metrics
+  const fetchMetrics = useCallback(async () => {
+    try {
+      setIsLoadingMetrics(true)
+      const response = await fetch('/api/dashboard/metrics')
+      const result = await response.json()
+      if (result.success && result.data) {
+        setMetrics(result.data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch metrics:', error)
+    } finally {
+      setIsLoadingMetrics(false)
+    }
+  }, [])
+
+  // Fetch tickets
+  const fetchTickets = useCallback(async () => {
+    try {
+      setIsLoadingTickets(true)
+      const response = await fetch('/api/tickets')
+      const result = await response.json()
+      if (result.success && result.data) {
+        // Transform dates from strings to Date objects
+        const transformedTickets = result.data.map((ticket: Ticket) => ({
+          ...ticket,
+          createdAt: new Date(ticket.createdAt),
+          updatedAt: new Date(ticket.updatedAt),
+          resolvedAt: ticket.resolvedAt ? new Date(ticket.resolvedAt) : undefined,
+          messages: ticket.messages?.map((msg: Message) => ({
+            ...msg,
+            createdAt: new Date(msg.createdAt),
+          })) || [],
+        }))
+        setTickets(transformedTickets)
+      }
+    } catch (error) {
+      console.error('Failed to fetch tickets:', error)
+    } finally {
+      setIsLoadingTickets(false)
+    }
+  }, [])
+
+  // Fetch activities
+  const fetchActivities = useCallback(async () => {
+    try {
+      setIsLoadingActivities(true)
+      const response = await fetch('/api/activities?limit=10')
+      const result = await response.json()
+      if (result.success && result.data) {
+        // Transform dates from strings to Date objects
+        const transformedActivities = result.data.map((activity: Activity) => ({
+          ...activity,
+          createdAt: new Date(activity.createdAt),
+        }))
+        setActivities(transformedActivities)
+      }
+    } catch (error) {
+      console.error('Failed to fetch activities:', error)
+    } finally {
+      setIsLoadingActivities(false)
+    }
+  }, [])
+
+  // Fetch notification count
+  const fetchNotificationCount = useCallback(async () => {
+    try {
+      const response = await fetch('/api/notifications?unread=true')
+      const result = await response.json()
+      if (result.success && result.data) {
+        setNotificationCount(result.data.unreadCount || 0)
+      }
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error)
+    }
+  }, [])
+
+  // Initial data fetch
+  useEffect(() => {
+    fetchMetrics()
+    fetchTickets()
+    fetchActivities()
+    fetchNotificationCount()
+  }, [fetchMetrics, fetchTickets, fetchActivities, fetchNotificationCount])
+
+  // Fetch AI suggestions when ticket is selected
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (!selectedTicket) {
+        setSuggestions([])
+        return
+      }
+
+      try {
+        setIsAILoading(true)
+        const response = await fetch('/api/ai/suggest-response', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticketId: selectedTicket.id }),
+        })
+        const result = await response.json()
+        if (result.success && result.data) {
+          setSuggestions(result.data.map((s: { id: string; content: string }, i: number) => ({
+            id: s.id || String(i),
+            content: s.content,
+            type: 'solution',
+          })))
+        }
+      } catch (error) {
+        console.error('Failed to fetch suggestions:', error)
+        // Fallback suggestions
+        setSuggestions([
+          {
+            id: '1',
+            content: "I understand your concern. Let me look into this right away and get back to you with a solution.",
+            type: 'solution',
+          },
+        ])
+      } finally {
+        setIsAILoading(false)
+      }
+    }
+
+    if (isModalOpen && selectedTicket) {
+      fetchSuggestions()
+    }
+  }, [selectedTicket, isModalOpen])
 
   const handleSelectTicket = (ticket: Ticket) => {
     setSelectedTicket(ticket)
@@ -308,15 +192,44 @@ export default function Dashboard() {
     setReplyText(suggestion.content)
   }
 
+  const handleSendReply = async () => {
+    if (!selectedTicket || !replyText.trim()) return
+
+    try {
+      const response = await fetch(`/api/tickets/${selectedTicket.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: replyText,
+          type: 'agent',
+        }),
+      })
+
+      if (response.ok) {
+        // Refresh tickets
+        fetchTickets()
+        setReplyText('')
+      }
+    } catch (error) {
+      console.error('Failed to send reply:', error)
+    }
+  }
+
+  const handleRefresh = () => {
+    fetchTickets()
+    fetchActivities()
+    fetchMetrics()
+  }
+
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
       {/* Sidebar */}
-      <SidebarNav activeRoute="/" />
+      <SidebarNav activeRoute="/dashboard" />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <HeaderBar notificationCount={3} />
+        <HeaderBar notificationCount={notificationCount} />
 
         {/* Dashboard Content */}
         <main className="flex-1 overflow-auto p-6">
@@ -326,23 +239,36 @@ export default function Dashboard() {
               Dashboard
             </h1>
             <p className="text-gray-500 dark:text-gray-400">
-              Welcome back! Here's what's happening with your support tickets.
+              Welcome back! Here&apos;s what&apos;s happening with your support tickets.
             </p>
           </div>
 
           {/* Metrics */}
-          <MetricsGrid metrics={mockMetrics} className="mb-6" />
+          {isLoadingMetrics ? (
+            <div className="flex items-center justify-center h-32 mb-6">
+              <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+            </div>
+          ) : (
+            <MetricsGrid metrics={metrics} className="mb-6" />
+          )}
 
           {/* Main Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Ticket List */}
             <div className="lg:col-span-2">
               <Card className="h-[600px]">
-                <TicketList
-                  tickets={mockTickets}
-                  selectedTicketId={selectedTicket?.id}
-                  onSelectTicket={handleSelectTicket}
-                />
+                {isLoadingTickets ? (
+                  <div className="flex items-center justify-center h-full">
+                    <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+                  </div>
+                ) : (
+                  <TicketList
+                    tickets={tickets}
+                    selectedTicketId={selectedTicket?.id}
+                    onSelectTicket={handleSelectTicket}
+                    onRefresh={handleRefresh}
+                  />
+                )}
               </Card>
             </div>
 
@@ -350,9 +276,10 @@ export default function Dashboard() {
             <div className="space-y-6">
               {/* AI Response Suggestions */}
               <ResponseSuggestions
-                suggestions={selectedTicket ? mockSuggestions : []}
+                suggestions={selectedTicket ? suggestions : []}
                 isLoading={isAILoading}
                 onAccept={handleAcceptSuggestion}
+                onEdit={(suggestion) => setReplyText(suggestion.content)}
               />
 
               {/* Activity Timeline */}
@@ -361,7 +288,13 @@ export default function Dashboard() {
                   <CardTitle className="text-base">Recent Activity</CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
-                  <ActivityTimeline activities={mockActivities} />
+                  {isLoadingActivities ? (
+                    <div className="flex items-center justify-center h-32">
+                      <Loader2 className="h-6 w-6 animate-spin text-teal-600" />
+                    </div>
+                  ) : (
+                    <ActivityTimeline activities={activities} />
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -401,7 +334,7 @@ export default function Dashboard() {
                 {/* Messages */}
                 <ScrollArea className="flex-1 p-4">
                   <div className="space-y-4">
-                    {selectedTicket.messages.map((message) => (
+                    {selectedTicket.messages?.map((message) => (
                       <MessageBubble
                         key={message.id}
                         message={message}
@@ -427,7 +360,11 @@ export default function Dashboard() {
                       className="min-h-[80px]"
                     />
                     <div className="flex flex-col gap-2">
-                      <Button className="bg-teal-600 hover:bg-teal-700">
+                      <Button
+                        className="bg-teal-600 hover:bg-teal-700"
+                        onClick={handleSendReply}
+                        disabled={!replyText.trim()}
+                      >
                         <Send className="h-4 w-4" />
                       </Button>
                       <Button variant="outline" size="icon">
@@ -447,12 +384,14 @@ export default function Dashboard() {
                   </TabsList>
 
                   <TabsContent value="details" className="mt-4 space-y-4">
-                    <CustomerProfile
-                      customer={selectedTicket.customer}
-                      ticketCount={3}
-                      avgCSAT={4.5}
-                      sentiment={selectedTicket.sentiment}
-                    />
+                    {selectedTicket.customer && (
+                      <CustomerProfile
+                        customer={selectedTicket.customer as UserType}
+                        ticketCount={tickets.filter(t => t.customerId === selectedTicket.customerId).length}
+                        avgCSAT={metrics.csatScore}
+                        sentiment={selectedTicket.sentiment}
+                      />
+                    )}
 
                     <Card>
                       <CardHeader className="pb-2">
@@ -469,9 +408,9 @@ export default function Dashboard() {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-500">Category</span>
-                          <span className="capitalize">{selectedTicket.category}</span>
+                          <span className="capitalize">{selectedTicket.category || 'N/A'}</span>
                         </div>
-                        {selectedTicket.tags.length > 0 && (
+                        {selectedTicket.tags && selectedTicket.tags.length > 0 && (
                           <div>
                             <span className="text-gray-500 block mb-2">Tags</span>
                             <div className="flex flex-wrap gap-1">
@@ -518,7 +457,7 @@ export default function Dashboard() {
                   </TabsContent>
 
                   <TabsContent value="activity" className="mt-4">
-                    <ActivityTimeline activities={mockActivities} className="h-[400px]" />
+                    <ActivityTimeline activities={activities.filter(a => a.ticketId === selectedTicket.id)} className="h-[400px]" />
                   </TabsContent>
                 </Tabs>
               </div>
