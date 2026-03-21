@@ -1,53 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { LLM } from 'z-ai-web-dev-sdk'
+import { analyzeSentiment } from '@/lib/ai/gemini'
+import { db } from '@/lib/db'
 
+// POST /api/ai/analyze-sentiment - Analyze sentiment of a message
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { text, ticketId } = body
+    const { message, ticketId } = body
 
-    if (!text) {
+    if (!message || !message.trim()) {
       return NextResponse.json(
-        { success: false, error: 'Text is required' },
+        { success: false, error: 'Message is required' },
         { status: 400 }
       )
     }
 
-    const llm = new LLM()
-    const response = await llm.chat({
-      messages: [
-        {
-          role: 'user',
-          content: `Analyze the sentiment of the following customer support message. Respond with only a JSON object:
-{"sentiment": "positive" | "neutral" | "negative", "score": <number between -1 and 1>, "confidence": <number between 0 and 1>}
-
-Message: "${text}"`,
-        },
-      ],
-      maxTokens: 100,
+    // Get user's API key from settings (BYOK)
+    const apiKeySetting = await db.settings.findUnique({
+      where: { key: 'gemini_api_key' }
     })
+    
+    const apiKey = apiKeySetting?.value || undefined
 
-    let result
-    try {
-      const jsonMatch = response.content?.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        result = JSON.parse(jsonMatch[0])
-      } else {
-        result = { sentiment: 'neutral', score: 0, confidence: 0.5 }
+    // Analyze sentiment
+    const result = await analyzeSentiment(message, apiKey)
+
+    // Optionally update ticket with sentiment
+    if (ticketId) {
+      try {
+        await db.ticket.update({
+          where: { id: ticketId },
+          data: {
+            sentiment: result.sentiment,
+            sentimentScore: result.confidence,
+          }
+        })
+      } catch {
+        // Ignore if ticket doesn't exist
       }
-    } catch {
-      result = { sentiment: 'neutral', score: 0, confidence: 0.5 }
     }
 
     return NextResponse.json({
       success: true,
-      data: {
-        ticketId,
-        ...result,
-      },
+      data: result
     })
   } catch (error) {
-    console.error('Error analyzing sentiment:', error)
+    console.error('Sentiment analysis error:', error)
     return NextResponse.json(
       { success: false, error: 'Failed to analyze sentiment' },
       { status: 500 }

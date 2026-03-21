@@ -30,6 +30,12 @@ import {
   Loader2,
   Shield,
   Palette,
+  Key,
+  CheckCircle2,
+  XCircle,
+  Trash2,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 
 interface Settings {
@@ -40,6 +46,13 @@ interface Settings {
   soundAlerts?: string
   aiAutoSuggestions?: string
   sentimentAnalysis?: string
+}
+
+interface AISettings {
+  hasApiKey: boolean
+  apiKeyPreview: string | null
+  aiEnabled: boolean
+  aiModel: string
 }
 
 const timezones = [
@@ -66,6 +79,15 @@ const languages = [
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings>({})
+  const [aiSettings, setAiSettings] = useState<AISettings>({
+    hasApiKey: false,
+    apiKeyPreview: null,
+    aiEnabled: true,
+    aiModel: 'gemini-2.0-flash-lite'
+  })
+  const [apiKeyInput, setApiKeyInput] = useState('')
+  const [showApiKey, setShowApiKey] = useState(false)
+  const [isValidatingKey, setIsValidatingKey] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [pendingChanges, setPendingChanges] = useState<Record<string, string>>({})
@@ -87,11 +109,24 @@ export default function SettingsPage() {
           description: 'Failed to load settings',
           variant: 'destructive',
         })
-      } finally {
-        setIsLoading(false)
       }
     }
-    fetchSettings()
+
+    const fetchAISettings = async () => {
+      try {
+        const response = await fetch('/api/ai/settings')
+        const result = await response.json()
+        if (result.success) {
+          setAiSettings(result.data)
+        }
+      } catch (error) {
+        console.error('Failed to fetch AI settings:', error)
+      }
+    }
+
+    Promise.all([fetchSettings(), fetchAISettings()]).finally(() => {
+      setIsLoading(false)
+    })
   }, [toast])
 
   // Update a setting locally (pending change)
@@ -162,6 +197,76 @@ export default function SettingsPage() {
       })
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  // Save Gemini API key (BYOK)
+  const saveApiKey = async () => {
+    if (!apiKeyInput.trim()) {
+      toast({
+        title: 'API Key Required',
+        description: 'Please enter your Gemini API key.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsValidatingKey(true)
+    try {
+      const response = await fetch('/api/ai/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: apiKeyInput.trim() }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        setAiSettings(result.data)
+        setApiKeyInput('')
+        setShowApiKey(false)
+        toast({
+          title: 'API Key Saved',
+          description: 'Your Gemini API key has been validated and saved successfully.',
+        })
+      } else {
+        toast({
+          title: 'Invalid API Key',
+          description: result.error || 'The API key could not be validated. Please check and try again.',
+          variant: 'destructive',
+        })
+      }
+    } catch {
+      toast({
+        title: 'Failed to Save',
+        description: 'Could not save your API key. Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsValidatingKey(false)
+    }
+  }
+
+  // Delete API key
+  const deleteApiKey = async () => {
+    try {
+      const response = await fetch('/api/ai/settings', {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        setAiSettings(prev => ({ ...prev, hasApiKey: false, apiKeyPreview: null }))
+        toast({
+          title: 'API Key Removed',
+          description: 'Your API key has been removed. A default key will be used for demo purposes.',
+        })
+      }
+    } catch {
+      toast({
+        title: 'Failed to Remove',
+        description: 'Could not remove your API key. Please try again.',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -529,6 +634,130 @@ export default function SettingsPage() {
             {/* AI Settings */}
             <TabsContent value="ai">
               <div className="grid gap-6">
+                {/* Bring Your Own Key (BYOK) */}
+                <Card className="border-gray-200 dark:border-gray-800">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                        <Key className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      Bring Your Own Key (BYOK)
+                    </CardTitle>
+                    <CardDescription>
+                      Use your own Gemini API key for AI features. This gives you full control over usage and costs.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Current Key Status */}
+                    <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                      <div className="flex items-center gap-3">
+                        {aiSettings.hasApiKey ? (
+                          <>
+                            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                            <div>
+                              <p className="text-sm font-medium">Custom API Key Active</p>
+                              <p className="text-xs text-gray-500">
+                                Key: {aiSettings.apiKeyPreview}
+                              </p>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <Key className="h-5 w-5 text-gray-400" />
+                            <div>
+                              <p className="text-sm font-medium">Using Default Key</p>
+                              <p className="text-xs text-gray-500">
+                                A demo API key is being used. Add your own for full access.
+                              </p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      {aiSettings.hasApiKey && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={deleteApiKey}
+                          className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* API Key Input */}
+                    <div className="space-y-3">
+                      <Label htmlFor="apiKey" className="text-sm font-medium">
+                        Gemini API Key
+                      </Label>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1 max-w-md">
+                          <Input
+                            id="apiKey"
+                            type={showApiKey ? 'text' : 'password'}
+                            placeholder="AIzaSy..."
+                            value={apiKeyInput}
+                            onChange={(e) => setApiKeyInput(e.target.value)}
+                            className="pr-10"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowApiKey(!showApiKey)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          >
+                            {showApiKey ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
+                        <Button
+                          onClick={saveApiKey}
+                          disabled={!apiKeyInput.trim() || isValidatingKey}
+                          className="bg-teal-600 hover:bg-teal-700"
+                        >
+                          {isValidatingKey ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Validating...
+                            </>
+                          ) : (
+                            <>
+                              <Key className="h-4 w-4 mr-2" />
+                              Save Key
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Get your API key from{' '}
+                        <a
+                          href="https://aistudio.google.com/app/apikey"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-teal-600 hover:underline"
+                        >
+                          Google AI Studio
+                        </a>
+                        . Your key is stored securely and never shared.
+                      </p>
+                    </div>
+
+                    {/* Model Info */}
+                    <div className="p-4 rounded-lg bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 border border-violet-200 dark:border-violet-800">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Sparkles className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                        <span className="font-medium text-sm">Current Model</span>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        <strong>Gemini 2.0 Flash-Lite</strong> - Fast, efficient, and cost-effective for customer support tasks.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {/* AI Features */}
                 <Card className="border-gray-200 dark:border-gray-800">
                   <CardHeader>
